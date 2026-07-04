@@ -19,4 +19,6 @@ ALWAYS present the solution as type signatures before writing any implementation
 
 Produce them with the `type-design` skill ([../type-design/SKILL.md](../type-design/SKILL.md)): the type contracts, the disambiguation results (resolved decisions, with unresolved ambiguities as open questions), and the prod/test call graph. Then wait for explicit approval before writing any implementation code.
 
+The type design MUST be grounded in the `coding-standards` non-negotiables and pass the six-month test — both come through the `type-design` skill; do not hand-wave them.
+
 </type-first-design>

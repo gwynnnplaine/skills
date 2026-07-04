@@ -23,12 +23,13 @@ Update later with `npx skills update`.
 
 | Skill | What it does |
 | --- | --- |
+| `coding-standards` | TypeScript coding standards and design taste: domain modeling, typed failures, deep modules, parsing, async, tests, contracts — routed by topic. |
 | `commit` | git commit workflow + terse Conventional Commits messages, applied with git. |
 | `design-patterns` | Book-grounded guide for choosing, comparing, and reviewing GoF design patterns, with TypeScript examples. |
 | `grill-me` | Interview you relentlessly about a plan until shared understanding, one question at a time. |
 | `grill-with-types` | Grilling session that produces type signatures as the design artifact before implementation. |
 | `never-trust-green` | Lock existing behavior with a characterization test, then sabotage-check the net before changing it. |
-| `review` | Deep, read-only code review of local changes, a commit/range, or a GitHub PR, type-first. |
+| `review` | Deep, read-only, standards-backed code review of local changes, a commit/range, or a GitHub PR, grounded in the coding-standards non-negotiables. |
 | `tdd` | Test-driven development with a red-green-refactor loop. |
 | `teach` | Teach a new skill or concept within the workspace. |
 | `type-design` | Turn resolved decisions into a type system — signatures, seams, error channels — before implementation. |
@@ -38,3 +39,5 @@ Update later with `npx skills update`.
 ## Credits
 
 Structure and distribution approach inspired by [mattpocock/skills](https://github.com/mattpocock/skills).
+
+The `coding-standards` skill and the `review` rewrite are lovingly stolen from [dmmulroy/skills](https://github.com/dmmulroy/skills). [@dmmulroy](https://github.com/dmmulroy) uses Pi and Herdr, like me. I'll take that as a good sign.

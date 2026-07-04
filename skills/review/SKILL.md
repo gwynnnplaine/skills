@@ -1,93 +1,93 @@
 ---
 name: review
-description: Deep, read-only code review of local changes, a commit/range, or a GitHub PR, with a type-first lens and a strict question-led finding format. Use via /skill:review with an optional target (staged | commit/range | pr <number|url> | GitHub PR URL).
+description: Deep, read-only, standards-backed code review of local changes, a commit/range, or a GitHub PR. Use via /skill:review with an optional target (staged | commit/range | pr <number|url> | GitHub PR URL).
 disable-model-invocation: true
 ---
-Review target: the argument appended to this skill invocation (shown below as `User: <target>`). If empty, default to local staged + unstaged.
+Review target: the argument appended to this skill invocation. If empty, default to local staged + unstaged. This is review-only: do not edit files, apply patches, or "fix as you go" unless the user explicitly asks after the review.
 
-GitHub PR URL → use `gh`. No target → local staged + unstaged. Otherwise git ref or review focus.
+## 1. Select the review target
 
-PR checkout protocol (GitHub PR URL or `pr N`):
-```bash
-# enter — persist state to files; shell vars do NOT survive across turns/sessions
-git branch --show-current > /tmp/pi-review.branch
-gh pr view N --json baseRefName --jq '.baseRefName' > /tmp/pi-review.base
-BASE_REF=$(cat /tmp/pi-review.base)
-# stash only if the tree is dirty, and record that we did
-if [ -n "$(git status --porcelain)" ]; then
-  git stash push --include-untracked -q -m pi-review && : > /tmp/pi-review.stashed
-fi
-gh pr checkout N
-git fetch origin "$BASE_REF" --quiet
-# All diffs MUST use three-dot syntax against the fetched base:
-#   git diff "origin/$BASE_REF"...HEAD
-# Three dots = merge-base to HEAD = exactly what GitHub shows.
-# Two dots or a stale origin ref will include unrelated commits.
-# stay on the PR branch. DO NOT checkout back automatically.
-```
-All diff and file reads are local after checkout. **Do not switch back to the original branch until the user explicitly says so** — they may want to keep poking at the PR after the review. When the user says to restore:
-```bash
-git checkout "$(cat /tmp/pi-review.branch)" --quiet
-[ -f /tmp/pi-review.stashed ] && git stash pop -q && rm -f /tmp/pi-review.stashed
-rm -f /tmp/pi-review.branch /tmp/pi-review.base
-```
+GitHub PR URL or `pr N` → follow [references/pr-checkout.md](references/pr-checkout.md) exactly for checkout and, later, restore. Stay on the PR branch; switch back only when the user explicitly says so. All diffs use three-dot syntax: `git diff "origin/$BASE_REF"...HEAD`. No target → local staged + unstaged. Otherwise a git ref or review focus. State the selected target before reviewing.
 
-Your first tool calls MUST be:
-1. Read the project ./AGENTS.md at the repo root (NOT the global ~/.pi/agent/AGENTS.md)
-2. If .ts/.tsx in diff: read the `type-review` skill — the type lens you review with, plus the 0–5 / fast-lasts verdict.
+Completion criterion: the target is explicit and backed by inspected git state or the user's instruction.
 
-Pull a specific `typescript-meta` READ WHEN doc only when a finding needs that depth (runtime schemas, trust boundaries, typed errors, variance) — don't bulk-load it.
+## 2. Load standards and local context
 
-Do not analyze the diff until these are read.
+Read these IN ORDER before you look at the diff:
 
-## How to review
+1. The project ./AGENTS.md at the repo root (NOT the global AGENTS.md).
+2. [`../coding-standards/SKILL.md`](../coding-standards/SKILL.md) and [`../coding-standards/VOCABULARY.md`](../coding-standards/VOCABULARY.md).
+3. [`../coding-standards/ROUTING.md`](../coding-standards/ROUTING.md), then open **every** topic file it routes to for the concerns this diff touches. For any `.ts`/`.tsx` change this ALWAYS includes `DOMAIN_MODELING.md` and `TYPESCRIPT_CONTRACTS.md`. Reading `ROUTING.md` without opening the files it points to does not count.
+4. If the diff touches `.ts`/`.tsx`, read the [`type-review`](../type-review/SKILL.md) skill — it defines the verdict worksheet you must produce below.
 
-Goal: make the change and the codebase better in the long run — not maximize findings. A clean change with two sharp findings beats a noisy one with ten. Approving fast is a valid outcome.
+Then inspect local code for conventions around errors, schemas, testing, DI, observability, and module layout before reporting a pattern deviation.
 
-**Think in types first** — apply the `type-design` lens ([../type-design/SKILL.md](../type-design/SKILL.md)): the signatures are the program. Delete the bodies mentally — if the types stop telling the structural story (data shapes, errors, state transitions), that's the finding.
+Completion criterion: every file above is open via a read call this session, **read in full** (a truncated read with `limit` does not count), **before any diff hunk or changed file content is read** — the only git operations allowed before then are the checkout protocol and `git diff --stat`. Name the topic files you opened; a file you did not read completely this session does not count as loaded.
 
-- Trace changed behavior through the codebase. Never review a diff in isolation.
-- A finding needs all six, or it's not a finding: **where** (exact `file:line`) · **fits** (the rule applies here) · **caused by this change** (not old code) · **what breaks** (a real problem, not "nicer") · **proof** (code, types, or tests show it) · **small fix** (a local change, not a rewrite). Missing one? Don't write it.
-- Look before you report. Before you write a finding, open the callers, types, parsers, and tests around it — the guard you think is missing may sit one file up. Check for the parse step, the DB rule, the existing `matchError`, the test that already covers it. Use git, gh, types, tests, repo files.
-- Vertical slices (source → domain → UI → tests), not file lists.
-- For each slice: classify design risk, ask what breaks.
-- Have taste. Flag mediocrity, not just bugs.
-- Name findings in the shared vocabulary ([./VOCABULARY.md](./VOCABULARY.md)) — seam, adapter, Expected Failure, Parse-Don't-Validate, Not Found Failure — not ad-hoc words.
+## 3. Review the change
 
-## Before a finding survives
+Design through the **non-happy path first** — name the failures, empty and boundary cases, and misuse before judging the happy path. Trace changed behavior through the codebase, never a diff hunk in isolation, following values across:
 
-Try to kill each finding before you write it. Ask:
+- external input → parser → domain type;
+- domain invariant → constructor/transition → persistence;
+- result → caller handling → protocol response;
+- secret source → error/log/trace sink;
+- async work → cancellation, promise ownership, retry/idempotency;
+- interface → adapter → dependency;
+- test → public interface / real seam → observable behavior.
 
-- **Does the rule fit here?** Or am I just matching a keyword?
-- **Did this change cause it?** If the code was already like this, it's not this PR's job.
-- **What actually breaks?** Name it: bad state, leak, race, double effect, extra work for the caller, a test gap. If nothing breaks, drop it.
-- **Is the fix small?** If the only fix is a big rewrite the PR didn't ask for, let it go.
+Hunt the smells agents commonly miss — Boolean Blindness, representable invalid states, validated-but-not-parsed data, hidden Expected Failures, secret leaks, pass-through wrappers, hidden globals, floating promises, module mocks — their definitions live in the topic files you just read.
 
-Drop the finding if it is: a guess ("someone might…"), old debt this PR didn't touch, just a style choice, already handled somewhere else, or only fixable by a big migration. No clear action for the author? Drop it or mark it `nit`.
+Treat every diff comment that asserts an invariant ("X can't happen", "backs the type", "always set when Y", "hidden until Z lands") as a lead, not a rationale: find the type that makes the compiler enforce the claim. No such type → that is a DOMAIN_MODELING finding. A comment is a hope; a type is a guarantee — an author's comment can never close a finding, only open one.
 
-Not sure? Say what proof is missing instead of writing a confident finding.
+Work in vertical slices (source → domain → UI → tests), not file lists. Name findings in the shared vocabulary (VOCABULARY.md), not ad-hoc words.
 
-Before writing findings, read [references/finding-style.md](references/finding-style.md) — the voice, the strict finding format, the banned list, and team-voice examples. It is mandatory; the findings are worthless in the wrong voice.
+Completion criterion: each material changed behavior, boundary, failure path, seam, async path, and test claim has either no issue or a concrete candidate finding.
+
+## 4. Require proof for every finding
+
+A finding survives only with concrete evidence. Quote the actual problematic code (path + line range), not a paraphrase. When behavior is the issue, show the value flow: real inputs, resulting outputs, the call path. When absent (missing contract/test), say what is missing. Every finding cites the exact `file:line`. If proof is missing, downgrade to **Question** or drop it.
+
+Completion criterion: every candidate finding has a precise location and behavioral proof, not a standards preference.
+
+## 5. Self-challenge findings
+
+Before final output, try to disprove each finding: did local convention already solve this elsewhere? is there a parser/seam/test setup outside the diff that satisfies it? is the value actually redacted? is the async intentionally sequential? is the broad type narrowed by a surrounding interface? is it merely a preference with no behavioral consequence? Drop or downgrade what does not survive.
+
+**Guard:** a finding that a changed path violates a `coding-standards` **non-negotiable** cannot be dropped or downgraded below **Should Fix** by self-challenge. A non-negotiable either holds or it doesn't — boolean blindness, a representable invalid state, a trust cast, a hidden expected failure do not become nits because the fix is a little work.
+
+Two disproofs are banned: "the author explains it in a comment" (comments are claims, not evidence) and "the type-level fix is too awkward" without an attempted sketch — if an `Exclude<...>`, derived subtype, or discriminated-union sketch works in two lines, the finding stands with that sketch as its fix.
+
+Completion criterion: final findings have survived an explicit attempt to disprove them, and no non-negotiable violation was silently dropped.
+
+## Severity
+
+- **Blocker** — likely correctness, safety, security, data-loss, idempotency, boundary, observability, or test-integrity issue in changed code; or a changed path violates a non-negotiable with behavioral consequence.
+- **Should Fix** — meaningful design, contract, or verification issue to address before merge; the guard floor for any non-negotiable violation.
+- **Simplification** — a clearer/deeper/smaller design that removes complexity without changing semantics.
+- **Nit** — small local issue, low behavioral risk.
+- **Question** — unresolved ambiguity where the right call depends on product/domain/local intent.
 
 ## Output
 
+Compose the full review — flow map, findings, type design — then deliver it as an **HTML report** plus a **terminal summary**. The full review lives in the HTML file; do not dump it into the terminal.
+
 ### Flow map
-ASCII diagram. Input to output. When the change touches composition, DI, or adapter/seam wiring, draw two paths — production and test — and check they converge below the seam; divergence deeper than the adapter boundary is a finding (the core can't be tested without reaching past the seam).
+ASCII diagram, input → output. When the change touches composition, DI, or adapter/seam wiring, draw two paths — production and test — and check they converge below the seam; divergence deeper than the adapter boundary is a finding (the core can't be tested without reaching past the seam).
+
+Every "can't happen" edge in the map must cite the guard that makes it impossible (`file:line`) and account for the paths that bypass it — client-side navigation, direct state writes, alternative entry points. An unverified "can't happen" is a **Question**, not a fact.
 
 ### Findings
-Numbered blocks separated by `---`. Each: number + question + why + `file:line`. Optional bare code block. Every finding MUST cite the exact file and line number. Follow [references/finding-style.md](references/finding-style.md) exactly.
+Grouped by severity in order: Blocker, Should Fix, Simplification, Nit, Question. Follow [references/finding-style.md](references/finding-style.md) exactly — the team voice, the question-first format, the banned list. It is mandatory; findings in the wrong voice are worthless. If two findings share a root cause, merge them. If nothing survives, say so briefly and list the standards areas checked. No praise, no "what's good" section.
 
 ### Type design
-Produce the `type-review` verdict: score the change's type system **0–5** and label it **fast** or **lasts**, one sentence each with the deciding evidence.
+Only for `.ts`/`.tsx` changes: the `type-review` verdict. Produce its derivation worksheet verbatim — a Type design section without the worksheet is invalid. Do not reconstruct the rubric from memory; the rules live only in that skill.
 
-### Verdict
-Answer as tech lead:
-- What does this change actually solve?
-- What's working that must NOT change, and why does it last? (the one keep-signal allowed — structural, not filler praise)
-- What would you push back on in a 1:1?
-- What's missing that a strong version would include?
+### HTML report
+Render the three sections above into a self-contained HTML file following [references/html-report.md](references/html-report.md) exactly — fill the fixed skeleton, do not redesign it. Write it to `/tmp/pi-review-<target>.html` and open it with `open`. Escape `&`, `<`, `>` inside code blocks.
 
-Keep each answer to one sentence. Then: **Approve**, **Request changes**, or **Needs discussion**.
+### Terminal summary
+After opening the report, print only: one line per non-empty severity with counts, the worksheet's final `score = … label = …` line, the report path, and the GitHub question below. Nothing else — the details are in the report.
 
 ### GitHub
-After the review, ask whether to post to PR. If yes, follow [references/github-posting.md](references/github-posting.md) exactly. Always ask before submitting; never auto-post.
+After the review, ask whether to post to the PR. If yes, follow [references/github-posting.md](references/github-posting.md) exactly. The review `event` derives from severity: any Blocker or Should Fix → `REQUEST_CHANGES`; otherwise → `COMMENT`. Never `APPROVE` automatically. Always ask before submitting; never auto-post.

@@ -7,7 +7,7 @@ Types are the actual program. Implementation is a runtime courtesy.
 
 Use this once the design decisions are settled — from a grilling session, a spec, or a handed-off decisions file. Input: the resolved facts. Output: the type-level contracts and call graph the implementer works from.
 
-Read the project's type conventions before drafting (naming rules, `interface` vs `type` policy, error-handling guide, the AGENTS.md naming tree, and the shared idioms in `./VOCABULARY.md` — seam, deep/shallow, Expected Failure, Parse-Don't-Validate, Smart Constructor). If a detail can be answered by exploring the codebase (existing names, seams, conventions), explore instead of guessing.
+Read the project's type conventions before drafting (naming rules, `interface` vs `type` policy, error-handling guide, the AGENTS.md naming tree, and the shared idioms in [`../coding-standards/VOCABULARY.md`](../coding-standards/VOCABULARY.md) — seam, deep/shallow, Expected Failure, Parse-Don't-Validate, Smart Constructor). During design, load the `coding-standards` files the design touches — see [`../coding-standards/ROUTING.md`](../coding-standards/ROUTING.md); design against their non-negotiables, not memory. If a detail can be answered by exploring the codebase (existing names, seams, conventions), explore instead of guessing.
 
 ## What to produce
 
@@ -34,6 +34,14 @@ Before asking for approval, stress-test your own type design:
 - What do these types NOT capture? Invariants that need a runtime assertion (state them as contracts), and behavior over time — accumulation, feedback, delays. Grill those separately; don't let the types pretend they cover the dynamics.
 
 If challenging the types reveals missing constraints, pause and grill until shared understanding before finalizing.
+
+## Six-month test
+
+Before finalizing, invent two radical but plausible changes this design could face in six months — a new variant in a union, a new consumer of the seam, a changed invariant, a swapped backend, an entity that splits in two. For each, ask one question: does adapting stay a **local change**, or does it **force API churn across callers, re-typing, or reworking the seam**?
+
+A design that absorbs both scenarios locally **lasts**; one where either forces churn is **fast**. A scenario "adapts locally" only if the compiler or a test points at every place that must change — a place that can be silently missed (a string filter, a boolean flag, a forgotten `switch` without exhaustiveness) is churn, however small the edit. The cost of the type-level fix is never evidence for the current design. Name which, and if a small structural change now (a union instead of a boolean, a branded id, a narrower seam) would move a fast design toward lasts, make it before finalizing.
+
+This section is the source of truth for the six-month test; `type-review` references it to decide the fast/lasts label.
 
 ## If you know it, the types should know it
 
