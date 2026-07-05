@@ -29,6 +29,7 @@ Update later with `npx skills update`.
 | `grill-me` | Interview you relentlessly about a plan until shared understanding, one question at a time. |
 | `grill-with-types` | Grilling session that produces type signatures as the design artifact before implementation. |
 | `never-trust-green` | Lock existing behavior with a characterization test, then sabotage-check the net before changing it. |
+| `pi-pool` | Delegate a batch of work items to a pool of pi workers in herdr panes — worktree per worker, branch per item, review left to you. |
 | `review` | Deep, read-only, standards-backed code review of local changes, a commit/range, or a GitHub PR, grounded in the coding-standards non-negotiables. |
 | `tdd` | Test-driven development with a red-green-refactor loop. |
 | `teach` | Teach a new skill or concept within the workspace. |
