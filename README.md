@@ -28,6 +28,7 @@ Update later with `npx skills update`.
 | `design-patterns` | Book-grounded guide for choosing, comparing, and reviewing GoF design patterns, with TypeScript examples. |
 | `grill-me` | Interview you relentlessly about a plan until shared understanding, one question at a time. |
 | `grill-with-types` | Grilling session that produces type signatures as the design artifact before implementation. |
+| `herdr` | Control herdr from inside it — workspaces, tabs, panes, agent waits, and spawn recipes over the socket CLI. |
 | `never-trust-green` | Lock existing behavior with a characterization test, then sabotage-check the net before changing it. |
 | `pi-pool` | Delegate a batch of work items to a pool of pi workers in herdr panes — worktree per worker, branch per item, review left to you. |
 | `review` | Deep, read-only, standards-backed code review of local changes, a commit/range, or a GitHub PR, grounded in the coding-standards non-negotiables. |
